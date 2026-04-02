@@ -90,7 +90,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
   border-left: 5px solid #0E4194; background: #f7f9fd;
 }
 .kpi-label { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .5px; }
-.kpi-value { font-size: 28px; font-weight: 800; color: #0E4194; line-height: 1.1; margin-top: 2px; }
+.kpi-value { font-size: 22px; font-weight: 800; color: #0E4194; line-height: 1.1; margin-top: 2px; }
 
 /* ===== CHARTS ===== */
 .chart-row { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -104,6 +104,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
   letter-spacing: .5px; color: #0E4194; margin-bottom: 10px;
   padding-bottom: 5px; border-bottom: 2px solid #e8edf3;
 }
+/* wrapper obrigatório para Chart.js respeitar altura fixa com maintainAspectRatio:false */
+.ch { position: relative; }
 .chart-scroll { overflow-y: auto; }
 
 /* ===== EIXO CARDS ===== */
@@ -221,8 +223,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
         <div class="kpi-card"><div class="kpi-label">Metas Concluídas</div><div class="kpi-value" id="kpi-concluidas">—</div></div>
       </div>
       <div class="chart-row">
-        <div class="chart-box"><h3>Status das Metas</h3><canvas id="c-p1-status" height="200"></canvas></div>
-        <div class="chart-box"><h3>Metas por Eixo Estratégico</h3><canvas id="c-p1-eixo" height="200"></canvas></div>
+        <div class="chart-box"><h3>Status das Metas</h3><div class="ch" style="height:210px"><canvas id="c-p1-status"></canvas></div></div>
+        <div class="chart-box"><h3>Metas por Eixo Estratégico</h3><div class="ch" style="height:210px"><canvas id="c-p1-eixo"></canvas></div></div>
       </div>
     </div>
   </div>
@@ -233,10 +235,10 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
     <div class="page-titlebar"><div class="page-num">2</div><h2>Análise Geral — Status dos Projetos</h2></div>
     <div class="page-body">
       <div class="chart-row">
-        <div class="chart-box full"><h3>Status dos Projetos por Eixo Estratégico</h3><canvas id="c-p2-proj" height="100"></canvas></div>
+        <div class="chart-box full"><h3>Status dos Projetos por Eixo Estratégico</h3><div class="ch" style="height:110px"><canvas id="c-p2-proj"></canvas></div></div>
       </div>
       <div class="chart-row" style="margin-top:14px">
-        <div class="chart-box"><h3>Distribuição do Status das Metas</h3><canvas id="c-p2-metas" height="200"></canvas></div>
+        <div class="chart-box"><h3>Distribuição do Status das Metas</h3><div class="ch" style="height:200px"><canvas id="c-p2-metas"></canvas></div></div>
         <div class="chart-box">
           <h3>Resumo de Metas por Status</h3>
           <div id="p2-status-list" style="margin-top:4px"></div>
@@ -251,7 +253,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
     <div class="page-titlebar"><div class="page-num">3</div><h2>Análise por Eixo Estratégico</h2></div>
     <div class="page-body">
       <div class="eixo-cards" id="p3-eixo-cards"></div>
-      <div class="chart-box full"><h3>Metas por Eixo × Status (%)</h3><canvas id="c-p3-bar" height="100"></canvas></div>
+      <div class="chart-box full"><h3>Metas por Eixo × Status (%)</h3><div class="ch" style="height:110px"><canvas id="c-p3-bar"></canvas></div></div>
     </div>
   </div>
 
@@ -275,8 +277,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
     <div class="page-titlebar"><div class="page-num">5</div><h2>Análise dos Pontos de Balanço — Encaminhamentos</h2></div>
     <div class="page-body">
       <div class="chart-row">
-        <div class="chart-box" style="flex:2"><h3>Encaminhamentos por Eixo × Status (%)</h3><canvas id="c-p5-eixo" height="120"></canvas></div>
-        <div class="chart-box"><h3>Status Geral dos Encaminhamentos</h3><canvas id="c-p5-donut" height="200"></canvas></div>
+        <div class="chart-box" style="flex:2"><h3>Encaminhamentos por Eixo × Status (%)</h3><div class="ch" style="height:130px"><canvas id="c-p5-eixo"></canvas></div></div>
+        <div class="chart-box"><h3>Status Geral dos Encaminhamentos</h3><div class="ch" style="height:200px"><canvas id="c-p5-donut"></canvas></div></div>
       </div>
     </div>
   </div>
@@ -306,8 +308,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
         <div class="fi-item"><div class="fi-label">Trimestre</div><div class="fi-value" id="fi-trimestre">Todos</div></div>
       </div>
       <div class="chart-row" style="margin-bottom:14px">
-        <div class="chart-box"><h3>Status das Metas</h3><canvas id="c-p7-pie" height="200"></canvas></div>
-        <div class="chart-box"><h3>Status dos Encaminhamentos</h3><canvas id="c-p7-enc" height="200"></canvas></div>
+        <div class="chart-box"><h3>Status das Metas</h3><div class="ch" style="height:210px"><canvas id="c-p7-pie"></canvas></div></div>
+        <div class="chart-box"><h3>Status dos Encaminhamentos</h3><div class="ch" style="height:210px"><canvas id="c-p7-enc"></canvas></div></div>
       </div>
       <div class="section-label">Metas e Comentários Gerenciais</div>
       <div class="metas-table-wrap">
