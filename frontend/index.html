@@ -185,8 +185,8 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
 
 <div class="filter-bar">
   <div class="filter-group">
-    <label>UNIDADE (Pág. 7)</label>
-    <select id="sel-unidade"><option value="">Todas as Unidades</option></select>
+    <label>SIGLA (Pág. 7)</label>
+    <select id="sel-unidade"><option value="">Todas as Siglas</option></select>
   </div>
   <div class="filter-group">
     <label>EIXO (Pág. 7)</label>
@@ -359,7 +359,7 @@ const STATUS_ENC_ORDER  = ['REALIZADO','REALIZADO PARCIALMENTE','CONCLUÍDO','AN
 
 // ===== STATE =====
 const charts = {};
-let state = { unidade: '', eixo: '', ano: '', trimestre: '' };
+let state = { sigla: '', eixo: '', ano: '', trimestre: '' };
 let currentPage = 1;
 const TOTAL_PAGES = 7;
 
@@ -583,14 +583,14 @@ async function renderP6() {
 
 async function renderP7() {
   const params = new URLSearchParams();
-  if (state.unidade)   params.set('unidade', state.unidade);
+  if (state.sigla)     params.set('sigla', state.sigla);
   if (state.eixo)      params.set('eixo', state.eixo);
   if (state.ano)       params.set('ano', state.ano);
   if (state.trimestre) params.set('trimestre', state.trimestre);
 
   const d = await fetch('/api/p7?' + params).then(r => r.json());
 
-  document.getElementById('fi-unidade').textContent  = state.unidade  || 'Todas';
+  document.getElementById('fi-unidade').textContent  = state.sigla    || 'Todas';
   document.getElementById('fi-eixo').textContent     = state.eixo     || 'Todos';
   document.getElementById('fi-trimestre').textContent = (state.ano && state.trimestre)
     ? `${state.ano} — ${state.trimestre}º Tri` : 'Todos';
@@ -644,7 +644,7 @@ async function setupFilters() {
     selT.appendChild(o);
   });
 
-  selU.addEventListener('change', () => { state.unidade = selU.value; renderP7(); });
+  selU.addEventListener('change', () => { state.sigla = selU.value; renderP7(); });
   selE.addEventListener('change', () => { state.eixo = selE.value; renderP7(); });
   selT.addEventListener('change', () => {
     if (selT.value) { const v = JSON.parse(selT.value); state.ano = v.ano; state.trimestre = v.tri; }

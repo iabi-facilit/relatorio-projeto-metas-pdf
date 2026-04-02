@@ -37,8 +37,7 @@ def get_filtros():
     try:
         unidades = rows(
             cur,
-            f"SELECT DISTINCT unidade FROM {S}.new_acaoprioritaria WHERE bienio=%s ORDER BY unidade",
-            (BIENIO,),
+            f"SELECT DISTINCT sigla FROM {S}.new_planooperativo WHERE sigla IS NOT NULL ORDER BY sigla",
         )
         eixos = rows(
             cur,
@@ -55,7 +54,7 @@ def get_filtros():
             """,
         )
         return {
-            "unidades": [r["unidade"] for r in unidades],
+            "unidades": [r["sigla"] for r in unidades],
             "eixos": [r["eixo"] for r in eixos],
             "trimestres": trimestres,
         }
@@ -261,20 +260,20 @@ def p6():
 
 @app.get("/api/p7")
 def p7(
-    unidade: Optional[str] = Query(None),
+    sigla: Optional[str] = Query(None),
     eixo: Optional[str] = Query(None),
     ano: Optional[int] = Query(None),
     trimestre: Optional[int] = Query(None),
 ):
-    """Análise por Unidade: filtrada por unidade, eixo e trimestre"""
+    """Análise por Unidade: filtrada por sigla, eixo e trimestre"""
     c = get_conn()
     cur = c.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
         w = ["a.bienio = %s"]
         p_base = [BIENIO]
-        if unidade:
-            w.append("p.unidade = %s")
-            p_base.append(unidade)
+        if sigla:
+            w.append("p.sigla = %s")
+            p_base.append(sigla)
         if eixo:
             w.append("t.tag = %s")
             p_base.append(eixo)
@@ -333,7 +332,7 @@ def p7(
             "status": status,
             "metas": metas,
             "enc": enc,
-            "filtros": {"unidade": unidade, "eixo": eixo, "ano": ano, "trimestre": trimestre},
+            "filtros": {"sigla": sigla, "eixo": eixo, "ano": ano, "trimestre": trimestre},
         }
     finally:
         c.close()
