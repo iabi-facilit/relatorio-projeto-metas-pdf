@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório de Monitoramento Estratégico</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #222; font-size: 13px; }
+
+/* ===== FILTER BAR ===== */
+.filter-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: #0E4194; color: #fff;
+  padding: 10px 24px; display: flex; align-items: center; gap: 14px;
+  flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+.filter-bar label { font-size: 11px; font-weight: 600; letter-spacing: .5px; opacity: .85; white-space: nowrap; }
+.filter-bar select {
+  padding: 5px 10px; border: none; border-radius: 4px;
+  background: #fff; color: #0E4194; font-size: 12px; font-weight: 600;
+  min-width: 180px; cursor: pointer;
+}
+.filter-bar select:focus { outline: 2px solid #118dff; }
+.filter-group { display: flex; flex-direction: column; gap: 3px; }
+.btn-baixar {
+  margin-left: auto; padding: 9px 22px; background: #2ECC40; color: #fff;
+  border: none; border-radius: 5px; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: background .2s;
+  display: flex; align-items: center; gap: 7px;
+}
+.btn-baixar:hover { background: #27ae60; }
+
+/* ===== LOADING ===== */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(14,65,148,.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 999; color: #fff;
+}
+.spinner {
+  width: 48px; height: 48px; border: 5px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite;
+  margin-bottom: 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== PAGES WRAPPER ===== */
+.pages-wrapper { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+/* ===== PAGE ===== */
+.page {
+  background: #fff; border-radius: 6px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.12);
+  overflow: hidden; page-break-after: always;
+}
+.cabecalho { width: 100%; display: block; }
+
+.page-titlebar {
+  background: #0E4194; color: #fff;
+  padding: 10px 24px; display: flex; align-items: center; gap: 12px;
+}
+.page-num {
+  background: rgba(255,255,255,.2); border-radius: 50%;
+  width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 13px; flex-shrink: 0;
+}
+.page-titlebar h2 { font-size: 15px; font-weight: 700; letter-spacing: .4px; }
+
+.page-body { padding: 20px 24px 24px; }
+
+/* ===== KPI CARDS ===== */
+.kpi-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.kpi-card {
+  flex: 1; min-width: 160px; border-radius: 8px; padding: 16px 20px;
+  display: flex; flex-direction: column; gap: 4px;
+  border-left: 5px solid #0E4194;
+  background: #f7f9fd;
+}
+.kpi-card .kpi-label { font-size: 11px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-card .kpi-value { font-size: 32px; font-weight: 800; color: #0E4194; line-height: 1; }
+.kpi-card.eixo1 { border-color: #118dff; }
+.kpi-card.eixo1 .kpi-value { color: #118dff; }
+.kpi-card.eixo2 { border-color: #70AD47; }
+.kpi-card.eixo2 .kpi-value { color: #70AD47; }
+.kpi-card.eixo3 { border-color: #FFC000; }
+.kpi-card.eixo3 .kpi-value { color: #d4a000; }
+.kpi-card.eixo4 { border-color: #0E4194; }
+
+/* ===== CHARTS ===== */
+.chart-row { display: flex; gap: 20px; flex-wrap: wrap; }
+.chart-box {
+  flex: 1; min-width: 300px; background: #fafafa; border-radius: 8px;
+  padding: 16px; border: 1px solid #eee;
+}
+.chart-box.full { flex-basis: 100%; }
+.chart-box h3 {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .6px; color: #0E4194; margin-bottom: 12px;
+  padding-bottom: 6px; border-bottom: 2px solid #e8edf3;
+}
+.chart-scroll { overflow-y: auto; }
+.chart-box canvas { max-width: 100%; }
+
+/* ===== EIXO CARDS ===== */
+.eixo-cards { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.eixo-card {
+  flex: 1; min-width: 200px; border-radius: 10px; padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.eixo-card.e1 { background: #e8f2ff; border-left: 6px solid #118dff; }
+.eixo-card.e2 { background: #edf5e5; border-left: 6px solid #70AD47; }
+.eixo-card.e3 { background: #fff8e5; border-left: 6px solid #FFC000; }
+.eixo-card.e4 { background: #e8edf8; border-left: 6px solid #0E4194; }
+.eixo-card .ec-title { font-size: 11px; font-weight: 600; color: #444; margin-bottom: 8px; }
+.eixo-card .ec-num { font-size: 36px; font-weight: 800; line-height: 1; }
+.eixo-card.e1 .ec-num { color: #118dff; }
+.eixo-card.e2 .ec-num { color: #70AD47; }
+.eixo-card.e3 .ec-num { color: #d4a000; }
+.eixo-card.e4 .ec-num { color: #0E4194; }
+.eixo-card .ec-sub { font-size: 10px; color: #777; margin-top: 4px; }
+
+/* ===== PAGE 7 FILTER INFO ===== */
+.filter-info {
+  background: #f0f5ff; border: 1px solid #c5d8ff; border-radius: 6px;
+  padding: 10px 16px; margin-bottom: 16px; display: flex; gap: 20px; flex-wrap: wrap;
+  align-items: center;
+}
+.filter-info .fi-item { display: flex; flex-direction: column; }
+.filter-info .fi-label { font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; }
+.filter-info .fi-value { font-size: 13px; color: #0E4194; font-weight: 700; }
+
+/* ===== METAS TABLE ===== */
+.metas-table-wrap { overflow-x: auto; margin-top: 16px; }
+.metas-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.metas-table th {
+  background: #0E4194; color: #fff; padding: 8px 10px;
+  text-align: left; font-weight: 600; white-space: nowrap;
+  position: sticky; top: 0;
+}
+.metas-table td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+.metas-table tr:nth-child(even) td { background: #f7f9fd; }
+.metas-table tr:hover td { background: #eef3ff; }
+.metas-table .td-meta { max-width: 260px; }
+.metas-table .td-comentario { max-width: 400px; color: #444; }
+.comentario-text {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; line-height: 1.4;
+}
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.badge-CONCLUÍDO      { background: #d4f7d4; color: #1a7a1a; }
+.badge-ANDAMENTO      { background: #fffac0; color: #7a6a00; }
+.badge-ATRASADO       { background: #fdd; color: #900; }
+.badge-NÃO-PLANEJADO  { background: #ede0d4; color: #6b3a0d; }
+.badge-A-INICIAR      { background: #eee; color: #555; }
+.badge-PARALISADO     { background: #ddd; color: #444; }
+
+/* ===== SECTION DIVIDER ===== */
+.section-label {
+  font-size: 10px; font-weight: 700; color: #0E4194;
+  text-transform: uppercase; letter-spacing: .6px;
+  padding: 8px 0 4px; margin-top: 8px;
+  border-bottom: 1px solid #e0e8f8;
+  margin-bottom: 12px;
+}
+
+/* ===== PRINT ===== */
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  body { background: #fff !important; }
+  .filter-bar { display: none !important; }
+  .loading-overlay { display: none !important; }
+  .pages-wrapper { padding: 0; gap: 0; }
+  .page {
+    border-radius: 0; box-shadow: none;
+    page-break-after: always; break-after: page;
+    page-break-inside: avoid;
+  }
+  .chart-scroll { overflow: visible !important; max-height: none !important; }
+  .metas-table-wrap { overflow: visible !important; }
+  .comentario-text { -webkit-line-clamp: unset !important; overflow: visible !important; display: block !important; }
+  .chart-box { border: none; background: transparent; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div>Carregando relatório...</div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar no-print">
+  <div class="filter-group">
+    <label>UNIDADE (Pág. 7)</label>
+    <select id="sel-unidade"><option value="">Todas as Unidades</option></select>
+  </div>
+  <div class="filter-group">
+    <label>EIXO (Pág. 7)</label>
+    <select id="sel-eixo"><option value="">Todos os Eixos</option></select>
+  </div>
+  <div class="filter-group">
+    <label>TRIMESTRE (Pág. 7)</label>
+    <select id="sel-trimestre"><option value="">Todos os Trimestres</option></select>
+  </div>
+  <button class="btn-baixar" id="btn-baixar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Baixar Relatório
+  </button>
+</div>
+
+<div class="pages-wrapper">
+
+  <!-- PAGE 1: Análise Geral -->
+  <div class="page" id="p1">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">1</div>
+      <h2>Análise Geral — 2º Biênio 2025/2026</h2>
+    </div>
+    <div class="page-body">
+      <div class="kpi-row" id="p1-kpis">
+        <div class="kpi-card"><div class="kpi-label">Total de Projetos</div><div class="kpi-value" id="kpi-projetos">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total de Metas</div><div class="kpi-value" id="kpi-metas">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Unidades</div><div class="kpi-value" id="kpi-unidades">—</div></div>
+        <div class="kpi-card"><div class="kpi-label">Metas Concluídas</div><div class="kpi-value" id="kpi-concluidas">—</div></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-box">
+          <h3>Status das Metas</h3>
+          <canvas id="c-p1-status" height="220"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Metas por Eixo Estratégico</h3>
+          <canvas id="c-p1-eixo" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: Análise Geral 2 -->
+  <div class="page" id="p2">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">2</div>
+      <h2>Análise Geral — Status dos Projetos</h2>
+    </div>
+    <div class="page-body">
+      <div class="chart-row">
+        <div class="chart-box full">
+          <h3>Status dos Projetos por Eixo Estratégico</h3>
+          <canvas id="c-p2-proj" height="120"></canvas>
+        </div>
+      </div>
+      <div class="chart-row" style="margin-top:16px">
+        <div class="chart-box">
+          <h3>Distribuição do Status das Metas</h3>
+          <canvas id="c-p2-metas" height="220"></canvas>
+        </div>
+        <div class="chart-box" id="p2-kpi-box" style="display:flex;flex-direction:column;justify-content:center;gap:10px;">
+          <h3>Resumo de Metas</h3>
+          <div id="p2-status-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 3: Análise por Eixo -->
+  <div class="page" id="p3">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">3</div>
+      <h2>Análise por Eixo Estratégico</h2>
+    </div>
+    <div class="page-body">
+      <div class="eixo-cards" id="p3-eixo-cards"></div>
+      <div class="chart-box full">
+        <h3>Metas por Eixo Estratégico × Status</h3>
+        <canvas id="c-p3-bar" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 4: Análise por Projeto -->
+  <div class="page" id="p4">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">4</div>
+      <h2>Análise por Projeto — Status das Metas</h2>
+    </div>
+    <div class="page-body">
+      <div class="chart-box full">
+        <h3>Análise de Projeto por Status de Metas (% por Projeto)</h3>
+        <div class="chart-scroll" id="p4-scroll">
+          <canvas id="c-p4"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 5: Análise Pontos de Balanço -->
+  <div class="page" id="p5">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">5</div>
+      <h2>Análise dos Pontos de Balanço — Encaminhamentos</h2>
+    </div>
+    <div class="page-body">
+      <div class="chart-row">
+        <div class="chart-box" style="flex:2">
+          <h3>Encaminhamentos por Eixo × Status</h3>
+          <canvas id="c-p5-eixo" height="130"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Status Geral dos Encaminhamentos</h3>
+          <canvas id="c-p5-donut" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 6: Análise de Projetos Por PBM -->
+  <div class="page" id="p6">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">6</div>
+      <h2>Análise de Projetos Por PBM — Status dos Encaminhamentos</h2>
+    </div>
+    <div class="page-body">
+      <div class="chart-box full">
+        <h3>Status dos Encaminhamentos por Projeto (% por Projeto)</h3>
+        <div class="chart-scroll" id="p6-scroll">
+          <canvas id="c-p6"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE 7: Análise por Unidade -->
+  <div class="page" id="p7">
+    <img src="/static/cabecalho.png" class="cabecalho" alt="Relatório de Monitoramento Estratégico">
+    <div class="page-titlebar">
+      <div class="page-num">7</div>
+      <h2>Análise por Unidade</h2>
+    </div>
+    <div class="page-body">
+      <div class="filter-info" id="p7-filter-info">
+        <div class="fi-item"><div class="fi-label">Unidade</div><div class="fi-value" id="fi-unidade">Todas</div></div>
+        <div class="fi-item"><div class="fi-label">Eixo</div><div class="fi-value" id="fi-eixo">Todos</div></div>
+        <div class="fi-item"><div class="fi-label">Trimestre</div><div class="fi-value" id="fi-trimestre">Todos</div></div>
+      </div>
+      <div class="chart-row" style="margin-bottom:16px">
+        <div class="chart-box">
+          <h3>Status das Metas por Unidade</h3>
+          <canvas id="c-p7-pie" height="220"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Status dos Encaminhamentos</h3>
+          <canvas id="c-p7-enc" height="220"></canvas>
+        </div>
+      </div>
+      <div class="section-label">Metas e Comentários Gerenciais</div>
+      <div class="metas-table-wrap">
+        <table class="metas-table" id="p7-table">
+          <thead>
+            <tr>
+              <th style="width:60px">Sigla</th>
+              <th style="width:220px">Meta</th>
+              <th style="width:90px">Status</th>
+              <th>Comentário Gerencial</th>
+            </tr>
+          </thead>
+          <tbody id="p7-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end pages-wrapper -->
+
+<script>
+// ===== CONSTANTS =====
+const STATUS_META_COLORS = {
+  'CONCLUÍDO':     '#2FD126',
+  'ANDAMENTO':     '#F5F11A',
+  'ATRASADO':      '#D91418',
+  'NÃO PLANEJADO': '#8F4805',
+  'A INICIAR':     '#999998',
+  'PARALISADO':    '#555555',
+};
+
+const STATUS_ENC_COLORS = {
+  'REALIZADO':              '#1a9641',
+  'REALIZADO PARCIALMENTE': '#70AD47',
+  'CONCLUÍDO':              '#2FD126',
+  'ANDAMENTO':              '#F5F11A',
+  'A INICIAR':              '#aaaaaa',
+  'ATRASADO':               '#D91418',
+  'NÃO REALIZADO':          '#8B0000',
+  'CANCELADO':              '#555555',
+};
+
+const EIXO_COLORS = {
+  'Eixo 1 - Trabalho e Desenvolvimento Econômico': '#118dff',
+  'Eixo 2 - Desenvolvimento Humano e Social':      '#70AD47',
+  'Eixo 3 - Infraestrutura e Sustentabilidade':    '#FFC000',
+  'Eixo 4 - Gestão, Governança e Inovação':        '#0E4194',
+};
+
+const EIXO_CLASSES = {
+  'Eixo 1 - Trabalho e Desenvolvimento Econômico': 'e1',
+  'Eixo 2 - Desenvolvimento Humano e Social':      'e2',
+  'Eixo 3 - Infraestrutura e Sustentabilidade':    'e3',
+  'Eixo 4 - Gestão, Governança e Inovação':        'e4',
+};
+
+const STATUS_META_ORDER = ['CONCLUÍDO','ANDAMENTO','ATRASADO','NÃO PLANEJADO','A INICIAR','PARALISADO'];
+const STATUS_ENC_ORDER  = ['REALIZADO','REALIZADO PARCIALMENTE','CONCLUÍDO','ANDAMENTO','A INICIAR','ATRASADO','NÃO REALIZADO','CANCELADO'];
+
+// ===== STATE =====
+const charts = {};
+let state = { unidade: '', eixo: '', ano: '', trimestre: '' };
+
+// ===== UTILS =====
+function metaColor(s) { return STATUS_META_COLORS[s] || '#ccc'; }
+function encColor(s)  { return STATUS_ENC_COLORS[s]  || '#ccc'; }
+
+function pct(val, total) { return total ? (val / total * 100) : 0; }
+
+function buildStackedPct(data, catField, serField, valField, orderSer) {
+  const cats = [...new Set(data.map(d => d[catField]))];
+  const series = orderSer
+    ? orderSer.filter(s => data.some(d => d[serField] === s))
+    : [...new Set(data.map(d => d[serField]))];
+
+  const totals = {};
+  data.forEach(d => { totals[d[catField]] = (totals[d[catField]] || 0) + Number(d[valField]); });
+
+  const datasets = series.map(s => ({
+    label: s,
+    data: cats.map(c => {
+      const item = data.find(d => d[catField] === c && d[serField] === s);
+      return item ? pct(Number(item[valField]), totals[c]).toFixed(1) : 0;
+    }),
+    backgroundColor: arguments[5] ? arguments[5](s) : metaColor(s),
+  }));
+
+  return { labels: cats, datasets };
+}
+
+function mkChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  charts[id] = new Chart(ctx, config);
+}
+
+const horizStackedOpts = (labelsFn) => ({
+  indexAxis: 'y',
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    x: { stacked: true, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: '#eee' } },
+    y: { stacked: true, ticks: { font: { size: 11 } } },
+  },
+  plugins: {
+    legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 8 } },
+    tooltip: {
+      callbacks: {
+        label: ctx => `${ctx.dataset.label}: ${parseFloat(ctx.raw).toFixed(1)}%`
+      }
+    }
+  }
+});
+
+const donutOpts = () => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12, padding: 6 } },
+    tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.formattedValue}` } }
+  }
+});
+
+// ===== PAGE 1 =====
+async function renderP1() {
+  const d = await fetch('/api/p1').then(r => r.json());
+
+  document.getElementById('kpi-projetos').textContent  = d.kpi.total_projetos;
+  document.getElementById('kpi-metas').textContent     = d.kpi.total_metas;
+  document.getElementById('kpi-unidades').textContent  = d.kpi.total_unidades;
+  const conc = d.status.find(s => s.status === 'CONCLUÍDO');
+  const total = d.status.reduce((a, s) => a + Number(s.qtd), 0);
+  const pctConc = total ? Math.round(Number(conc?.qtd || 0) / total * 100) : 0;
+  document.getElementById('kpi-concluidas').textContent = pctConc + '%';
+
+  // Donut status
+  const statusOrdered = STATUS_META_ORDER.filter(s => d.status.find(x => x.status === s));
+  mkChart('c-p1-status', {
+    type: 'doughnut',
+    data: {
+      labels: statusOrdered,
+      datasets: [{ data: statusOrdered.map(s => d.status.find(x => x.status === s)?.qtd || 0), backgroundColor: statusOrdered.map(metaColor) }]
+    },
+    options: donutOpts()
+  });
+
+  // Pie eixo
+  const eixos = d.eixos;
+  mkChart('c-p1-eixo', {
+    type: 'pie',
+    data: {
+      labels: eixos.map(e => e.eixo.replace('Eixo ', 'E').split(' - ')[0] + ' - ' + e.eixo.split(' - ').slice(1).join(' - ')),
+      datasets: [{ data: eixos.map(e => e.qtd), backgroundColor: eixos.map(e => EIXO_COLORS[e.eixo] || '#ccc') }]
+    },
+    options: donutOpts()
+  });
+}
+
+// ===== PAGE 2 =====
+async function renderP2() {
+  const d = await fetch('/api/p2').then(r => r.json());
+
+  // Stacked bar - projetos por eixo × status
+  const { labels, datasets } = buildStackedPct(d.proj_status, 'eixo', 'status', 'qtd', STATUS_META_ORDER, metaColor);
+  mkChart('c-p2-proj', {
+    type: 'bar',
+    data: { labels, datasets },
+    options: horizStackedOpts()
+  });
+
+  // Donut metas status
+  const statusOrdered = STATUS_META_ORDER.filter(s => d.metas_status.find(x => x.status === s));
+  mkChart('c-p2-metas', {
+    type: 'doughnut',
+    data: {
+      labels: statusOrdered,
+      datasets: [{ data: statusOrdered.map(s => d.metas_status.find(x => x.status === s)?.qtd || 0), backgroundColor: statusOrdered.map(metaColor) }]
+    },
+    options: donutOpts()
+  });
+
+  // Status list
+  const total = d.metas_status.reduce((a, s) => a + Number(s.qtd), 0);
+  const list = document.getElementById('p2-status-list');
+  list.innerHTML = d.metas_status.map(s => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #eee">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${metaColor(s.status)};display:inline-block"></span>
+        <span style="font-size:11px">${s.status}</span>
+      </span>
+      <span style="font-weight:700;font-size:12px">${s.qtd} <span style="color:#888;font-weight:400;font-size:10px">(${pct(s.qtd,total).toFixed(0)}%)</span></span>
+    </div>
+  `).join('');
+}
+
+// ===== PAGE 3 =====
+async function renderP3() {
+  const d = await fetch('/api/p3').then(r => r.json());
+
+  // Eixo cards
+  const cardsEl = document.getElementById('p3-eixo-cards');
+  cardsEl.innerHTML = d.counts.map(e => {
+    const cls = EIXO_CLASSES[e.eixo] || 'e4';
+    const nomeEixo = e.eixo.split(' - ').slice(1).join(' - ');
+    return `<div class="eixo-card ${cls}">
+      <div class="ec-title">${e.eixo.split(' - ')[0]}</div>
+      <div class="ec-num">${e.qtd}</div>
+      <div class="ec-sub">${nomeEixo}</div>
+    </div>`;
+  }).join('');
+
+  // Stacked bar metas por eixo × status
+  const { labels, datasets } = buildStackedPct(d.breakdown, 'eixo', 'status', 'qtd', STATUS_META_ORDER, metaColor);
+  mkChart('c-p3-bar', {
+    type: 'bar',
+    data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets },
+    options: horizStackedOpts()
+  });
+}
+
+// ===== PAGE 4 =====
+async function renderP4() {
+  const d = await fetch('/api/p4').then(r => r.json());
+  const siglas = [...new Set(d.data.map(x => x.sigla))].sort();
+  const { labels, datasets } = buildStackedPct(d.data, 'sigla', 'status', 'qtd', STATUS_META_ORDER, metaColor);
+
+  const h = Math.max(300, siglas.length * 26);
+  document.getElementById('p4-scroll').style.height = Math.min(h, 700) + 'px';
+  document.getElementById('c-p4').style.height = h + 'px';
+  document.getElementById('c-p4').setAttribute('height', h);
+
+  mkChart('c-p4', {
+    type: 'bar',
+    data: { labels, datasets },
+    options: horizStackedOpts()
+  });
+}
+
+// ===== PAGE 5 =====
+async function renderP5() {
+  const d = await fetch('/api/p5').then(r => r.json());
+
+  // Stacked bar enc por eixo × status_enc
+  const { labels, datasets } = buildStackedPct(d.eixo_status, 'eixo', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
+  mkChart('c-p5-eixo', {
+    type: 'bar',
+    data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets },
+    options: horizStackedOpts()
+  });
+
+  // Donut global enc status
+  const statusOrdered = STATUS_ENC_ORDER.filter(s => d.global_status.find(x => x.status_enc === s));
+  mkChart('c-p5-donut', {
+    type: 'doughnut',
+    data: {
+      labels: statusOrdered,
+      datasets: [{ data: statusOrdered.map(s => d.global_status.find(x => x.status_enc === s)?.qtd || 0), backgroundColor: statusOrdered.map(encColor) }]
+    },
+    options: donutOpts()
+  });
+}
+
+// ===== PAGE 6 =====
+async function renderP6() {
+  const d = await fetch('/api/p6').then(r => r.json());
+  const siglas = [...new Set(d.data.map(x => x.sigla))].sort();
+  const { labels, datasets } = buildStackedPct(d.data, 'sigla', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
+
+  const h = Math.max(300, siglas.length * 26);
+  document.getElementById('p6-scroll').style.height = Math.min(h, 700) + 'px';
+  document.getElementById('c-p6').style.height = h + 'px';
+  document.getElementById('c-p6').setAttribute('height', h);
+
+  mkChart('c-p6', {
+    type: 'bar',
+    data: { labels, datasets },
+    options: horizStackedOpts()
+  });
+}
+
+// ===== PAGE 7 =====
+async function renderP7() {
+  const params = new URLSearchParams();
+  if (state.unidade)  params.set('unidade', state.unidade);
+  if (state.eixo)     params.set('eixo', state.eixo);
+  if (state.ano)      params.set('ano', state.ano);
+  if (state.trimestre) params.set('trimestre', state.trimestre);
+
+  const d = await fetch('/api/p7?' + params).then(r => r.json());
+
+  // Filter info
+  document.getElementById('fi-unidade').textContent  = state.unidade  || 'Todas';
+  document.getElementById('fi-eixo').textContent     = state.eixo     || 'Todos';
+  document.getElementById('fi-trimestre').textContent = (state.ano && state.trimestre)
+    ? `${state.ano} - ${state.trimestre}º Tri` : 'Todos';
+
+  // Pie status metas
+  const statusOrdered = STATUS_META_ORDER.filter(s => d.status.find(x => x.status === s));
+  mkChart('c-p7-pie', {
+    type: 'doughnut',
+    data: {
+      labels: statusOrdered,
+      datasets: [{ data: statusOrdered.map(s => d.status.find(x => x.status === s)?.qtd || 0), backgroundColor: statusOrdered.map(metaColor) }]
+    },
+    options: donutOpts()
+  });
+
+  // Bar enc status
+  const encOrdered = STATUS_ENC_ORDER.filter(s => d.enc.find(x => x.status_enc === s));
+  mkChart('c-p7-enc', {
+    type: 'bar',
+    data: {
+      labels: encOrdered,
+      datasets: [{
+        label: 'Encaminhamentos',
+        data: encOrdered.map(s => d.enc.find(x => x.status_enc === s)?.qtd || 0),
+        backgroundColor: encOrdered.map(encColor)
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 9 } } } }
+    }
+  });
+
+  // Table
+  const tbody = document.getElementById('p7-tbody');
+  tbody.innerHTML = d.metas.map(m => {
+    const badgeCls = 'badge badge-' + (m.status || '').replace(/\s+/g, '-').replace(/[^A-Za-zÀ-ú0-9-]/g, '');
+    return `<tr>
+      <td><strong>${m.sigla || '—'}</strong></td>
+      <td class="td-meta">${m.meta || '—'}</td>
+      <td><span class="${badgeCls}">${m.status || '—'}</span></td>
+      <td class="td-comentario"><div class="comentario-text">${m.comentario || '<em style="color:#aaa">Sem comentário</em>'}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== FILTERS =====
+async function setupFilters() {
+  const f = await fetch('/api/filtros').then(r => r.json());
+
+  const selU = document.getElementById('sel-unidade');
+  f.unidades.forEach(u => {
+    const o = document.createElement('option'); o.value = u; o.textContent = u; selU.appendChild(o);
+  });
+
+  const selE = document.getElementById('sel-eixo');
+  f.eixos.forEach(e => {
+    const o = document.createElement('option'); o.value = e; o.textContent = e; selE.appendChild(o);
+  });
+
+  const selT = document.getElementById('sel-trimestre');
+  f.trimestres.forEach(t => {
+    const o = document.createElement('option');
+    o.value = JSON.stringify({ ano: t.ano, tri: t.trimestre });
+    o.textContent = `${t.ano} — ${t.trimestre}º Trimestre`;
+    selT.appendChild(o);
+  });
+
+  selU.addEventListener('change', () => {
+    state.unidade = selU.value;
+    renderP7();
+  });
+  selE.addEventListener('change', () => {
+    state.eixo = selE.value;
+    renderP7();
+  });
+  selT.addEventListener('change', () => {
+    if (selT.value) {
+      const v = JSON.parse(selT.value);
+      state.ano = v.ano; state.trimestre = v.tri;
+    } else {
+      state.ano = ''; state.trimestre = '';
+    }
+    renderP7();
+  });
+
+  document.getElementById('btn-baixar').addEventListener('click', () => {
+    window.print();
+  });
+}
+
+// ===== INIT =====
+async function init() {
+  try {
+    await setupFilters();
+    await Promise.all([renderP1(), renderP2(), renderP3(), renderP4(), renderP5(), renderP6(), renderP7()]);
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
