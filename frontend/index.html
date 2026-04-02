@@ -477,7 +477,7 @@ async function renderP1() {
   document.getElementById('kpi-unidades').textContent = d.kpi.total_unidades;
   const total = d.status.reduce((a, s) => a + Number(s.qtd), 0);
   const conc  = d.status.find(s => s.status === 'CONCLUÍDO');
-  document.getElementById('kpi-concluidas').textContent = total ? Math.round(Number(conc?.qtd || 0) / total * 100) + '%' : '—';
+  document.getElementById('kpi-concluidas').textContent = conc?.qtd || 0;
 
   const statusOrd = STATUS_META_ORDER.filter(s => d.status.find(x => x.status === s));
   mkChart('c-p1-status', {
