@@ -311,14 +311,19 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
         <div class="chart-box"><h3>Status das Metas</h3><div class="ch" style="height:210px"><canvas id="c-p7-pie"></canvas></div></div>
         <div class="chart-box"><h3>Status dos Encaminhamentos</h3><div class="ch" style="height:210px"><canvas id="c-p7-enc"></canvas></div></div>
       </div>
-      <div class="section-label">Metas e Comentários Gerenciais</div>
+      <div class="section-label">Encaminhamentos Detalhados</div>
       <div class="metas-table-wrap">
         <table class="metas-table">
           <thead><tr>
-            <th style="width:55px">Sigla</th>
-            <th style="width:210px">Meta</th>
-            <th style="width:85px">Status</th>
-            <th>Comentário Gerencial</th>
+            <th style="width:48px">Sigla</th>
+            <th style="min-width:160px">Meta</th>
+            <th style="width:80px">Status</th>
+            <th style="min-width:130px">Resultado da Meta</th>
+            <th style="min-width:160px">Encaminhamento</th>
+            <th style="width:80px">Trimestre</th>
+            <th style="width:90px">Status Enc.</th>
+            <th style="width:70px">Previsão</th>
+            <th style="min-width:160px">Ponto de Balanço Seguinte</th>
           </tr></thead>
           <tbody id="p7-tbody"></tbody>
         </table>
@@ -615,13 +620,24 @@ async function renderP7() {
     options: barOpts(),
   });
 
-  document.getElementById('p7-tbody').innerHTML = d.metas.map(m => {
-    const badgeCls = 'badge badge-' + (m.status || '').replace(/\s+/g, '-').replace(/[^A-Za-zÀ-ú0-9-]/g, '');
+  document.getElementById('p7-tbody').innerHTML = (d.tabela || []).map(m => {
+    const statusBg  = STATUS_META_COLORS[m.status]     || '#eee';
+    const encBg     = STATUS_ENC_COLORS[m.status_enc]  || '#eee';
+    const statusFg  = ['ANDAMENTO','A INICIAR'].includes(m.status)     ? '#333' : '#fff';
+    const encFg     = ['ANDAMENTO','A INICIAR'].includes(m.status_enc) ? '#333' : '#fff';
+    function cell(txt, bg, fg) {
+      return `<span style="display:inline-block;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:700;background:${bg};color:${fg};white-space:nowrap">${txt}</span>`;
+    }
     return `<tr>
       <td><strong>${m.sigla || '—'}</strong></td>
-      <td style="max-width:210px;font-size:11px">${m.meta || '—'}</td>
-      <td><span class="${badgeCls}">${m.status || '—'}</span></td>
-      <td style="max-width:380px"><div class="comentario-text">${m.comentario || '<em style="color:#aaa">Sem comentário</em>'}</div></td>
+      <td style="font-size:11px">${m.meta || '—'}</td>
+      <td>${cell(m.status || '—', statusBg, statusFg)}</td>
+      <td style="font-size:11px;color:#444">${m.resultado_meta || '<em style="color:#aaa">—</em>'}</td>
+      <td style="font-size:11px;color:#444">${m.encaminhamento || '<em style="color:#aaa">—</em>'}</td>
+      <td style="white-space:nowrap;font-size:11px">${m.trimestre_fmt || '—'}</td>
+      <td>${cell(m.status_enc || '—', encBg, encFg)}</td>
+      <td style="white-space:nowrap;font-size:11px">${m.previsao || '—'}</td>
+      <td style="font-size:11px;color:#444;font-style:italic">${m.ponto_balanco_seguinte || '<em style="color:#aaa">—</em>'}</td>
     </tr>`;
   }).join('');
 }

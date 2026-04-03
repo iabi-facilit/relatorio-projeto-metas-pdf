@@ -265,73 +265,100 @@ def p7(
     ano: Optional[int] = Query(None),
     trimestre: Optional[int] = Query(None),
 ):
-    """Análise por Unidade: filtrada por sigla, eixo e trimestre"""
+    """Análise por Unidade: tabela detalhada com LEAD (ponto de balanço seguinte)"""
     c = get_conn()
     cur = c.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     try:
-        w = ["a.bienio = %s"]
+        # --- Filtros para metas (status chart) ---
+        w_meta = ["a.bienio = %s"]
+        p_meta = [BIENIO]
+        if sigla:
+            w_meta.append("pm.sigla = %s")
+            p_meta.append(sigla)
+        if eixo:
+            w_meta.append("t.tag = %s")
+            p_meta.append(eixo)
+
+        status = rows(cur, f"""
+            SELECT pm.status, COUNT(DISTINCT pm.uuid_) as qtd
+            FROM {S}.new_planooperativo pm
+            JOIN {S}.new_acaoprioritaria a ON a.uuid_ = pm.fatheruuid
+            LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_ AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
+            WHERE {" AND ".join(w_meta)}
+            GROUP BY pm.status ORDER BY qtd DESC
+        """, tuple(p_meta))
+
+        # --- Filtros base para encaminhamentos (sem trimestre — LEAD calculado antes) ---
+        w_base = ["a.bienio = %s"]
         p_base = [BIENIO]
         if sigla:
-            w.append("p.sigla = %s")
+            w_base.append("enc.acronym = %s")
             p_base.append(sigla)
         if eixo:
-            w.append("t.tag = %s")
+            w_base.append("t.tag = %s")
             p_base.append(eixo)
-        where = " AND ".join(w)
 
-        status = rows(
-            cur,
-            f"""
-            SELECT p.status, COUNT(DISTINCT p.uuid_) as qtd
-            FROM {S}.new_planooperativo p
-            JOIN {S}.new_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_ AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
-            WHERE {where} GROUP BY p.status ORDER BY qtd DESC
-            """,
-            tuple(p_base),
-        )
-
-        metas = rows(
-            cur,
-            f"""
-            SELECT DISTINCT ON (p.uuid_) p.uuid_, p.entidade as meta, p.status,
-                p.comentario, a.sigla, a.entidade as projeto, t.tag as eixo
-            FROM {S}.new_planooperativo p
-            JOIN {S}.new_acaoprioritaria a ON a.uuid_ = p.fatheruuid
-            LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_ AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
-            WHERE {where}
-            ORDER BY p.uuid_, a.sigla, p.entidade
-            """,
-            tuple(p_base),
-        )
-
-        w_enc = list(w)
+        # --- Status encaminhamentos chart (com filtro de trimestre) ---
+        w_enc = list(w_base)
         p_enc = list(p_base)
         if ano:
-            w_enc.append("EXTRACT(YEAR FROM e.terminoprevisto) = %s")
+            w_enc.append("EXTRACT(YEAR FROM enc.dt_previsao_enc)::int = %s")
             p_enc.append(ano)
         if trimestre:
-            w_enc.append("EXTRACT(QUARTER FROM e.terminoprevisto) = %s")
+            w_enc.append("CEILING(EXTRACT(MONTH FROM enc.dt_previsao_enc) / 3.0)::int = %s")
             p_enc.append(trimestre)
-        where_enc = " AND ".join(w_enc)
 
-        enc = rows(
-            cur,
-            f"""
-            SELECT e.status_enc, COUNT(*) as qtd
-            FROM {S}.new_metas_encamihamentos e
-            JOIN {S}.new_planooperativo p ON p.uuid_ = e.uuid_
+        enc = rows(cur, f"""
+            SELECT enc.status_enc, COUNT(*) as qtd
+            FROM {S}.new_metas_encamihamentos enc
+            JOIN {S}.new_planooperativo p ON p.uuid_ = enc.uuid_
             JOIN {S}.new_acaoprioritaria a ON a.uuid_ = p.fatheruuid
             LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_ AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
-            WHERE {where_enc} GROUP BY e.status_enc ORDER BY qtd DESC
-            """,
-            tuple(p_enc),
-        )
+            WHERE {" AND ".join(w_enc)}
+            GROUP BY enc.status_enc ORDER BY qtd DESC
+        """, tuple(p_enc))
+
+        # --- Tabela detalhada: LEAD calculado antes do filtro de trimestre ---
+        ano_filter   = "AND ano_enc = %s"   if ano       else ""
+        tri_filter   = "AND tri_enc = %s"   if trimestre else ""
+        p_outer = list(p_base) + ([ano] if ano else []) + ([trimestre] if trimestre else [])
+
+        tabela = rows(cur, f"""
+            SELECT meta, sigla, status, resultado_meta, encaminhamento,
+                   trimestre_fmt, status_enc, previsao, ponto_balanco_seguinte
+            FROM (
+                SELECT
+                    enc.entidade                                              AS meta,
+                    enc.acronym                                               AS sigla,
+                    enc.status,
+                    enc.resultadometa                                         AS resultado_meta,
+                    enc.encaminhamento,
+                    CEILING(EXTRACT(MONTH FROM enc.dt_previsao_enc) / 3.0)::int
+                        || 'º Tri / ' ||
+                        EXTRACT(YEAR FROM enc.dt_previsao_enc)::int          AS trimestre_fmt,
+                    EXTRACT(YEAR FROM enc.dt_previsao_enc)::int              AS ano_enc,
+                    CEILING(EXTRACT(MONTH FROM enc.dt_previsao_enc) / 3.0)::int AS tri_enc,
+                    enc.status_enc,
+                    TO_CHAR(enc.dt_previsao_enc, 'DD/MM/YYYY')              AS previsao,
+                    LEAD(enc.encaminhamento) OVER (
+                        PARTITION BY enc.acronym, enc.entidade
+                        ORDER BY enc.dt_previsao_enc
+                    )                                                         AS ponto_balanco_seguinte
+                FROM {S}.new_metas_encamihamentos enc
+                JOIN {S}.new_planooperativo p ON p.uuid_ = enc.uuid_
+                JOIN {S}.new_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+                LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_
+                    AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
+                WHERE {" AND ".join(w_base)}
+            ) sub
+            WHERE TRUE {ano_filter} {tri_filter}
+            ORDER BY sigla, meta, previsao
+        """, tuple(p_outer))
 
         return {
             "status": status,
-            "metas": metas,
             "enc": enc,
+            "tabela": tabela,
             "filtros": {"sigla": sigla, "eixo": eixo, "ano": ano, "trimestre": trimestre},
         }
     finally:
