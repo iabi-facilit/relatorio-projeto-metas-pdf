@@ -303,10 +303,16 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
     <div class="page-titlebar"><div class="page-num">7</div><h2>Análise por Unidade</h2></div>
     <div class="page-body">
       <div class="filter-info" id="p7-filter-info">
-        <div class="fi-item"><div class="fi-label">Unidade</div><div class="fi-value" id="fi-unidade">Todas</div></div>
-        <div class="fi-item"><div class="fi-label">Eixo</div><div class="fi-value" id="fi-eixo">Todos</div></div>
-        <div class="fi-item"><div class="fi-label">Trimestre</div><div class="fi-value" id="fi-trimestre">Todos</div></div>
+        <div class="fi-item"><div class="fi-label">Unidade</div><div class="fi-value" id="fi-unidade">—</div></div>
+        <div class="fi-item"><div class="fi-label">Eixo</div><div class="fi-value" id="fi-eixo">—</div></div>
+        <div class="fi-item"><div class="fi-label">Trimestre</div><div class="fi-value" id="fi-trimestre">—</div></div>
       </div>
+      <div id="p7-aviso" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;color:#555;text-align:center">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#0E4194" stroke-width="1.5" style="margin-bottom:12px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div style="font-size:15px;font-weight:700;color:#0E4194;margin-bottom:6px">Selecione ao menos um filtro</div>
+        <div style="font-size:12px;color:#777">Use os filtros acima (Sigla, Eixo ou Trimestre) para carregar a análise por unidade.</div>
+      </div>
+      <div id="p7-conteudo" style="display:none">
       <div class="chart-row" style="margin-bottom:14px">
         <div class="chart-box"><h3>Status das Metas</h3><div class="ch" style="height:210px"><canvas id="c-p7-pie"></canvas></div></div>
         <div class="chart-box"><h3>Status dos Encaminhamentos</h3><div class="ch" style="height:210px"><canvas id="c-p7-enc"></canvas></div></div>
@@ -335,6 +341,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
           <tbody id="p7-tbody"></tbody>
         </table>
       </div>
+      </div><!-- /p7-conteudo -->
     </div>
   </div>
 
@@ -594,6 +601,22 @@ async function renderP6() {
 }
 
 async function renderP7() {
+  const aviso    = document.getElementById('p7-aviso');
+  const conteudo = document.getElementById('p7-conteudo');
+
+  // Pelo menos um filtro é obrigatório
+  if (!state.sigla && !state.eixo && !state.ano && !state.trimestre) {
+    aviso.style.display    = 'flex';
+    conteudo.style.display = 'none';
+    document.getElementById('fi-unidade').textContent  = '—';
+    document.getElementById('fi-eixo').textContent     = '—';
+    document.getElementById('fi-trimestre').textContent = '—';
+    return;
+  }
+
+  aviso.style.display    = 'none';
+  conteudo.style.display = 'block';
+
   const params = new URLSearchParams();
   if (state.sigla)     params.set('sigla', state.sigla);
   if (state.eixo)      params.set('eixo', state.eixo);
