@@ -806,7 +806,24 @@ async function setupFilters() {
 
   document.getElementById('btn-prev').addEventListener('click', () => showPage(currentPage - 1));
   document.getElementById('btn-next').addEventListener('click', () => showPage(currentPage + 1));
-  document.getElementById('btn-baixar').addEventListener('click', () => window.print());
+  document.getElementById('btn-baixar').addEventListener('click', () => {
+    // Força todas as páginas visíveis e redimensiona charts antes de imprimir
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
+    if (document.getElementById('p7-conteudo'))
+      document.getElementById('p7-conteudo').style.display = 'block';
+    Object.values(charts).forEach(c => { try { c.resize(); } catch(e){} });
+    // Pequena pausa para o browser completar o layout antes de abrir o diálogo
+    setTimeout(() => {
+      window.print();
+      // Restaura estado visual após impressão
+      setTimeout(() => {
+        document.querySelectorAll('.page').forEach(p => p.style.display = '');
+        if (document.getElementById('p7-conteudo'))
+          document.getElementById('p7-conteudo').style.display = '';
+        showPage(currentPage);
+      }, 500);
+    }, 300);
+  });
 }
 
 // ===== INIT =====
