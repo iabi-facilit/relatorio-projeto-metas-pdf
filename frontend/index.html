@@ -188,55 +188,68 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
 
 /* ===== PRINT ===== */
 @media print {
-  @page { size: A4 portrait; margin: 10mm 8mm; }
-  body { background: #fff !important; color: #111; }
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+  body { background: #fff !important; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .filter-bar, .loading-overlay { display: none !important; }
   .pages-wrapper { padding: 0; }
+
+  /* Última página não gera folha extra */
   .page { display: block !important; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .page:last-of-type { page-break-after: avoid !important; break-after: avoid !important; }
+
   .chart-scroll, .metas-table-wrap { overflow: visible !important; max-height: none !important; }
   .comentario-text { -webkit-line-clamp: unset !important; overflow: visible !important; display: block !important; }
   .chart-box { border: 1px solid #eee; background: #fafafa; }
 
-  /* Manter gráficos lado a lado — evita empilhamento com espaço vazio */
-  .chart-row { flex-direction: row !important; flex-wrap: nowrap; gap: 10px; }
+  /* ── P1: dois donuts lado a lado ── */
+  #p1 .chart-row { flex-direction: row !important; }
+  #p1 .ch { height: 290px !important; }
 
-  /* P1 — dois donuts lado a lado, altura maior para preencher página */
-  #p1 .ch { height: 310px !important; }
+  /* ── P2: barra full no topo, donut+lista em baixo lado a lado ── */
+  #p2 .chart-row { flex-direction: row !important; }
+  #p2 .chart-row:first-child { flex-direction: column !important; }
+  #p2 .ch { height: 220px !important; }
 
-  /* P2 — barra estreita no topo (full), donut + lista abaixo lado a lado */
-  #p2 .ch { height: 230px !important; }
-
-  /* P3 — cards + barra full-width */
+  /* ── P3: 4 cards em linha + barra full ── */
+  #p3 .chart-row { flex-direction: row !important; }
   #p3 .chart-box.full { flex-basis: 100%; }
-  #p3 .eixo-cards { flex-wrap: wrap; gap: 8px; }
-  #p3 .eixo-card { flex: 1; min-width: 140px; }
-  #p3 .ch { height: 170px !important; }
+  #p3 .eixo-cards { flex-wrap: nowrap; gap: 8px; }
+  #p3 .eixo-card { flex: 1; min-width: 0; }
+  #p3 .ch { height: 200px !important; }
 
-  /* P4 — barra horizontal alta, altura definida pelo JS */
+  /* ── P4: barra alta full-width ── */
+  #p4 .chart-row { flex-direction: column !important; }
   #p4 .chart-box { flex-basis: 100%; }
   #p4 .ch { height: auto !important; }
 
-  /* P5 — barra eixo (flex:2) + donut lado a lado */
-  #p5 .ch { height: 270px !important; }
+  /* ── P5: empilhado vertical (barra invadia donut no lado a lado) ── */
+  #p5 .chart-row { flex-direction: column !important; gap: 12px; }
+  #p5 .chart-box { flex-basis: auto !important; }
+  #c-p5-eixo { height: 180px !important; }
+  #p5 #c-p5-eixo ~ * { }
+  #p5 .ch { height: 200px !important; }
 
-  /* P6 — barra horizontal alta, altura definida pelo JS */
+  /* ── P6: barra alta full-width ── */
+  #p6 .chart-row { flex-direction: column !important; }
   #p6 .chart-box { flex-basis: 100%; }
   #p6 .ch { height: auto !important; }
 
-  /* P7 — pie + bar enc lado a lado */
+  /* ── P7: pie + bar lado a lado ── */
+  #p7 .chart-row { flex-direction: row !important; }
   #p7 .ch { height: 230px !important; }
+  #p7-aviso { display: none !important; }
 
-  /* KPI cards sem quebra */
+  /* KPI sem quebra de linha */
   .kpi-row { flex-wrap: nowrap; gap: 8px; }
   .kpi-card { padding: 8px 10px; }
   .kpi-value { font-size: 18px; }
 
-  /* Tabela compacta p7 */
-  .metas-table { font-size: 8px; }
-  .metas-table th, .metas-table td { padding: 3px 4px; }
+  /* Legenda menor para não truncar */
+  canvas { display: block; }
 
-  #p7-aviso { display: none !important; }
-  #p7-conteudo { display: block !important; }
+  /* Tabela compacta */
+  .metas-table { font-size: 7.5px; }
+  .metas-table th, .metas-table td { padding: 2px 3px; }
 }
 </style>
 </head>
@@ -896,23 +909,35 @@ async function setupFilters() {
 
   document.getElementById('btn-prev').addEventListener('click', () => showPage(currentPage - 1));
   document.getElementById('btn-next').addEventListener('click', () => showPage(currentPage + 1));
-  document.getElementById('btn-baixar').addEventListener('click', () => {
-    // Força todas as páginas visíveis e redimensiona charts antes de imprimir
+  document.getElementById('btn-baixar').addEventListener('click', async () => {
+    // 1) Mostra todas as páginas
     document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
-    if (document.getElementById('p7-conteudo'))
-      document.getElementById('p7-conteudo').style.display = 'block';
+    const p7c = document.getElementById('p7-conteudo');
+    if (p7c) p7c.style.display = 'block';
+
+    // 2) Força reflow para o DOM calcular dimensões reais
+    void document.body.offsetHeight;
+
+    // 3) Primeiro resize dos charts
     Object.values(charts).forEach(c => { try { c.resize(); } catch(e){} });
-    // Pequena pausa para o browser completar o layout antes de abrir o diálogo
+
+    // 4) Aguarda dois frames + 400ms para charts renderizarem completamente
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 400))));
+
+    // 5) Segundo resize (garante dimensões corretas após layout estabilizar)
+    Object.values(charts).forEach(c => { try { c.resize(); } catch(e){} });
+
+    // 6) Mais um frame antes de imprimir
+    await new Promise(r => requestAnimationFrame(r));
+
+    window.print();
+
+    // 7) Restaura estado visual após impressão
     setTimeout(() => {
-      window.print();
-      // Restaura estado visual após impressão
-      setTimeout(() => {
-        document.querySelectorAll('.page').forEach(p => p.style.display = '');
-        if (document.getElementById('p7-conteudo'))
-          document.getElementById('p7-conteudo').style.display = '';
-        showPage(currentPage);
-      }, 500);
-    }, 300);
+      document.querySelectorAll('.page').forEach(p => p.style.display = '');
+      if (p7c) p7c.style.display = '';
+      showPage(currentPage);
+    }, 500);
   });
 }
 
