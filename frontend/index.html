@@ -311,6 +311,13 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
         <div class="chart-box"><h3>Status das Metas</h3><div class="ch" style="height:210px"><canvas id="c-p7-pie"></canvas></div></div>
         <div class="chart-box"><h3>Status dos Encaminhamentos</h3><div class="ch" style="height:210px"><canvas id="c-p7-enc"></canvas></div></div>
       </div>
+      <div class="section-label">Status — Pontos de Balanço de Metas</div>
+      <div class="metas-table-wrap" style="margin-bottom:16px">
+        <table class="metas-table" id="p7-matriz-table">
+          <thead id="p7-matriz-head"></thead>
+          <tbody id="p7-matriz-body"></tbody>
+        </table>
+      </div>
       <div class="section-label">Encaminhamentos Detalhados</div>
       <div class="metas-table-wrap">
         <table class="metas-table">
@@ -620,6 +627,73 @@ async function renderP7() {
     options: barOpts(),
   });
 
+  // ── Matriz: Unidade × Trimestre × status_enc ──────────────
+  (function renderMatriz(data) {
+    const siglas    = [...new Set(data.map(r => r.sigla))].sort();
+    const trimestres = [...new Set(data.map(r => r.trimestre_fmt))].sort();
+    const statuses  = [...new Set(data.map(r => r.status_enc))];
+
+    // Índice para lookup rápido
+    const idx = {};
+    data.forEach(r => { idx[`${r.sigla}|${r.trimestre_fmt}|${r.status_enc}`] = Number(r.qtd); });
+
+    // Totais por (sigla, trimestre) e total geral por sigla
+    function total(sig, tri) {
+      return statuses.reduce((s, st) => s + (idx[`${sig}|${tri}|${st}`] || 0), 0);
+    }
+    function totalSigla(sig) {
+      return trimestres.reduce((s, tri) => s + total(sig, tri), 0);
+    }
+
+    const thead = document.getElementById('p7-matriz-head');
+    const tbody = document.getElementById('p7-matriz-body');
+    if (!thead || !tbody) return;
+
+    if (!data.length) {
+      thead.innerHTML = '';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:12px;color:#aaa">Nenhum dado encontrado</td></tr>';
+      return;
+    }
+
+    // Cabeçalho: Unidade | tri1 (status...) | tri2 | ... | Total
+    // Linha 1: Unidade + trimestres + Total
+    const thTri = trimestres.map(t => `<th colspan="${statuses.length + 1}" style="text-align:center;background:#1a3a6b;color:#fff;border-right:2px solid #fff">${t}</th>`).join('');
+    const thStatus = trimestres.map(() =>
+      statuses.map(s => {
+        const bg = STATUS_ENC_COLORS[s] || '#ccc';
+        const fg = ['ANDAMENTO','A INICIAR'].includes(s) ? '#333' : '#fff';
+        return `<th style="font-size:9px;background:${bg};color:${fg};white-space:nowrap;padding:3px 5px">${s}</th>`;
+      }).join('') + `<th style="font-size:9px;background:#555;color:#fff">Total</th>`
+    ).join('');
+
+    thead.innerHTML = `
+      <tr>
+        <th rowspan="2" style="background:#154f8a;color:#fff;white-space:nowrap">Unidade</th>
+        ${thTri}
+        <th rowspan="2" style="background:#154f8a;color:#fff">Total</th>
+      </tr>
+      <tr>${thStatus}</tr>`;
+
+    // Corpo: uma linha por sigla
+    tbody.innerHTML = siglas.map(sig => {
+      const cells = trimestres.map(tri => {
+        const stCells = statuses.map(st => {
+          const v = idx[`${sig}|${tri}|${st}`] || 0;
+          return `<td style="text-align:center;font-size:11px">${v > 0 ? v : '—'}</td>`;
+        }).join('');
+        const tot = total(sig, tri);
+        return stCells + `<td style="text-align:center;font-weight:700;font-size:11px;background:#f0f4fb;border-right:2px solid #ddd">${tot || '—'}</td>`;
+      }).join('');
+      const grand = totalSigla(sig);
+      return `<tr>
+        <td style="white-space:nowrap;font-weight:700"><strong>${sig}</strong></td>
+        ${cells}
+        <td style="text-align:center;font-weight:800;font-size:12px;background:#e0e8f8">${grand}</td>
+      </tr>`;
+    }).join('');
+  })(d.matriz || []);
+
+  // ── Tabela detalhada ─────────────────────────────────────
   document.getElementById('p7-tbody').innerHTML = (d.tabela || []).map(m => {
     const statusBg  = STATUS_META_COLORS[m.status]     || '#eee';
     const encBg     = STATUS_ENC_COLORS[m.status_enc]  || '#eee';

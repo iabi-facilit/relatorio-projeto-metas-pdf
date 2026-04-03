@@ -355,9 +355,29 @@ def p7(
             ORDER BY sigla, meta, previsao
         """, tuple(p_outer))
 
+        # --- Matriz: Unidade × Trimestre × status_enc (usa filtro de trimestre) ---
+        matriz = rows(cur, f"""
+            SELECT
+                enc.acronym AS sigla,
+                CEILING(EXTRACT(MONTH FROM enc.dt_previsao_enc) / 3.0)::int
+                    || 'º Tri / ' ||
+                    EXTRACT(YEAR FROM enc.dt_previsao_enc)::int AS trimestre_fmt,
+                enc.status_enc,
+                COUNT(*) AS qtd
+            FROM {S}.new_metas_encamihamentos enc
+            JOIN {S}.new_planooperativo p ON p.uuid_ = enc.uuid_
+            JOIN {S}.new_acaoprioritaria a ON a.uuid_ = p.fatheruuid
+            LEFT JOIN {S}.new_tags t ON t.owneruuid = a.uuid_
+                AND t.tag LIKE 'Eixo%%' AND t.tag NOT LIKE '%%PENAJUSTA%%'
+            WHERE {" AND ".join(w_enc)}
+            GROUP BY enc.acronym, trimestre_fmt, enc.status_enc
+            ORDER BY enc.acronym, trimestre_fmt, enc.status_enc
+        """, tuple(p_enc))
+
         return {
             "status": status,
             "enc": enc,
+            "matriz": matriz,
             "tabela": tabela,
             "filtros": {"sigla": sigla, "eixo": eixo, "ano": ano, "trimestre": trimestre},
         }
