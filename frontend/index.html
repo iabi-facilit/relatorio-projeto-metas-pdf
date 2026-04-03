@@ -163,16 +163,28 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
 
 /* ===== PRINT ===== */
 @media print {
-  @page { size: A4 landscape; margin: 6mm; }
-  body { background: #fff !important; }
+  @page { size: A4 portrait; margin: 8mm; }
+  body { background: #fff !important; font-size: 11px; }
   .filter-bar { display: none !important; }
   .loading-overlay { display: none !important; }
   .pages-wrapper { padding: 0; }
   .page { display: block !important; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .chart-row { flex-direction: column; gap: 8px; }
+  .chart-box { border: none; background: transparent; flex-basis: auto !important; min-width: 0 !important; }
+  .chart-box.full { flex-basis: auto !important; }
   .chart-scroll { overflow: visible !important; max-height: none !important; }
   .metas-table-wrap { overflow: visible !important; max-height: none !important; }
   .comentario-text { -webkit-line-clamp: unset !important; overflow: visible !important; display: block !important; }
-  .chart-box { border: none; background: transparent; }
+  /* Tabela p7: reduz fontes para caber no A4 vertical */
+  .metas-table { font-size: 8px; }
+  .metas-table th, .metas-table td { padding: 3px 4px; }
+  /* KPI e eixo cards em linha */
+  .kpi-row { flex-wrap: wrap; }
+  .eixo-cards { flex-wrap: wrap; }
+  /* Gráficos com altura moderada */
+  .ch { height: 180px !important; }
+  #p7-aviso { display: none !important; }
+  #p7-conteudo { display: block !important; }
 }
 </style>
 </head>
