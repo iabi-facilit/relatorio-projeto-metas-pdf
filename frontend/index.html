@@ -163,26 +163,53 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
 
 /* ===== PRINT ===== */
 @media print {
-  @page { size: A4 portrait; margin: 8mm; }
-  body { background: #fff !important; font-size: 11px; }
-  .filter-bar { display: none !important; }
-  .loading-overlay { display: none !important; }
+  @page { size: A4 portrait; margin: 10mm 8mm; }
+  body { background: #fff !important; color: #111; }
+  .filter-bar, .loading-overlay { display: none !important; }
   .pages-wrapper { padding: 0; }
   .page { display: block !important; border-radius: 0; box-shadow: none; page-break-after: always; break-after: page; }
-  .chart-row { flex-direction: column; gap: 8px; }
-  .chart-box { border: none; background: transparent; flex-basis: auto !important; min-width: 0 !important; }
-  .chart-box.full { flex-basis: auto !important; }
-  .chart-scroll { overflow: visible !important; max-height: none !important; }
-  .metas-table-wrap { overflow: visible !important; max-height: none !important; }
+  .chart-scroll, .metas-table-wrap { overflow: visible !important; max-height: none !important; }
   .comentario-text { -webkit-line-clamp: unset !important; overflow: visible !important; display: block !important; }
-  /* Tabela p7: reduz fontes para caber no A4 vertical */
+  .chart-box { border: 1px solid #eee; background: #fafafa; }
+
+  /* Manter gráficos lado a lado — evita empilhamento com espaço vazio */
+  .chart-row { flex-direction: row !important; flex-wrap: nowrap; gap: 10px; }
+
+  /* P1 — dois donuts lado a lado, altura maior para preencher página */
+  #p1 .ch { height: 310px !important; }
+
+  /* P2 — barra estreita no topo (full), donut + lista abaixo lado a lado */
+  #p2 .ch { height: 230px !important; }
+
+  /* P3 — cards + barra full-width */
+  #p3 .chart-box.full { flex-basis: 100%; }
+  #p3 .eixo-cards { flex-wrap: wrap; gap: 8px; }
+  #p3 .eixo-card { flex: 1; min-width: 140px; }
+  #p3 .ch { height: 170px !important; }
+
+  /* P4 — barra horizontal alta, altura definida pelo JS */
+  #p4 .chart-box { flex-basis: 100%; }
+  #p4 .ch { height: auto !important; }
+
+  /* P5 — barra eixo (flex:2) + donut lado a lado */
+  #p5 .ch { height: 270px !important; }
+
+  /* P6 — barra horizontal alta, altura definida pelo JS */
+  #p6 .chart-box { flex-basis: 100%; }
+  #p6 .ch { height: auto !important; }
+
+  /* P7 — pie + bar enc lado a lado */
+  #p7 .ch { height: 230px !important; }
+
+  /* KPI cards sem quebra */
+  .kpi-row { flex-wrap: nowrap; gap: 8px; }
+  .kpi-card { padding: 8px 10px; }
+  .kpi-value { font-size: 18px; }
+
+  /* Tabela compacta p7 */
   .metas-table { font-size: 8px; }
   .metas-table th, .metas-table td { padding: 3px 4px; }
-  /* KPI e eixo cards em linha */
-  .kpi-row { flex-wrap: wrap; }
-  .eixo-cards { flex-wrap: wrap; }
-  /* Gráficos com altura moderada */
-  .ch { height: 180px !important; }
+
   #p7-aviso { display: none !important; }
   #p7-conteudo { display: block !important; }
 }
