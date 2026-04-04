@@ -499,6 +499,13 @@ function showPage(n) {
   document.getElementById('page-indicator').textContent = `Página ${currentPage} de ${TOTAL_PAGES}`;
   document.getElementById('btn-prev').disabled = currentPage === 1;
   document.getElementById('btn-next').disabled = currentPage === TOTAL_PAGES;
+  // Charts de p7 podem ter sido criados com a página oculta (display:none).
+  // Ao navegar para pág.7, força resize para garantir dimensões corretas.
+  if (currentPage === 7) {
+    requestAnimationFrame(() => {
+      ['c-p7-pie', 'c-p7-enc'].forEach(id => { try { charts[id]?.resize(); } catch(e){} });
+    });
+  }
 }
 
 // ===== UTILS =====
