@@ -247,9 +247,22 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
   /* Legenda menor para não truncar */
   canvas { display: block; }
 
-  /* Tabela compacta */
-  .metas-table { font-size: 7.5px; }
+  /* Tabela compacta (geral) */
+  .metas-table { font-size: 7px; }
   .metas-table th, .metas-table td { padding: 2px 3px; }
+
+  /* P7 — tabela de detalhes: layout fixo para caber no A4 portrait */
+  #p7-det-table { table-layout: fixed; width: 100%; font-size: 6.5px; }
+  #p7-det-table td { overflow: hidden; word-break: break-word; }
+  #p7-det-table th:nth-child(1) { width: 5%; }
+  #p7-det-table th:nth-child(2) { width: 17%; }
+  #p7-det-table th:nth-child(3) { width: 9%; }
+  #p7-det-table th:nth-child(4) { width: 13%; }
+  #p7-det-table th:nth-child(5) { width: 17%; }
+  #p7-det-table th:nth-child(6) { width: 8%; }
+  #p7-det-table th:nth-child(7) { width: 9%; }
+  #p7-det-table th:nth-child(8) { width: 7%; }
+  #p7-det-table th:nth-child(9) { width: 15%; }
 }
 </style>
 </head>
@@ -421,7 +434,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
       </div>
       <div class="section-label">Encaminhamentos Detalhados</div>
       <div class="metas-table-wrap">
-        <table class="metas-table">
+        <table class="metas-table" id="p7-det-table">
           <thead><tr>
             <th style="width:48px">Sigla</th>
             <th style="min-width:160px">Meta</th>
@@ -909,41 +922,37 @@ async function setupFilters() {
 
   document.getElementById('btn-prev').addEventListener('click', () => showPage(currentPage - 1));
   document.getElementById('btn-next').addEventListener('click', () => showPage(currentPage + 1));
-  document.getElementById('btn-baixar').addEventListener('click', async () => {
-    // 1) Mostra todas as páginas
-    document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
-    const p7c = document.getElementById('p7-conteudo');
-    if (p7c) p7c.style.display = 'block';
-
-    // 2) Força reflow para o DOM calcular dimensões reais
-    void document.body.offsetHeight;
-
-    // 3) Primeiro resize dos charts
-    Object.values(charts).forEach(c => { try { c.resize(); } catch(e){} });
-
-    // 4) Aguarda dois frames + 400ms para charts renderizarem completamente
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 400))));
-
-    // 5) Segundo resize (garante dimensões corretas após layout estabilizar)
-    Object.values(charts).forEach(c => { try { c.resize(); } catch(e){} });
-
-    // 6) Mais um frame antes de imprimir
-    await new Promise(r => requestAnimationFrame(r));
-
-    window.print();
-
-    // 7) Restaura estado visual após impressão
-    setTimeout(() => {
-      document.querySelectorAll('.page').forEach(p => p.style.display = '');
-      if (p7c) p7c.style.display = '';
-      showPage(currentPage);
-    }, 500);
-  });
+  // beforeprint/afterprint cuidam de mostrar páginas e redimensionar charts
+  document.getElementById('btn-baixar').addEventListener('click', () => window.print());
 }
+
+// ===== PRINT EVENTS =====
+// beforeprint dispara APÓS o CSS de impressão ser aplicado — dimensões dos containers já são as de impressão
+window.addEventListener('beforeprint', () => {
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
+  const p7c = document.getElementById('p7-conteudo');
+  if (p7c && (state.sigla || state.eixo || state.ano || state.trimestre)) p7c.style.display = 'block';
+  void document.body.offsetHeight; // força recalculo de layout com CSS de impressão ativo
+  Object.values(charts).forEach(c => {
+    try { c.resize(); c.update('none'); } catch(e) {}
+  });
+});
+
+window.addEventListener('afterprint', () => {
+  document.querySelectorAll('.page').forEach(p => p.style.display = '');
+  const p7c = document.getElementById('p7-conteudo');
+  const aviso = document.getElementById('p7-aviso');
+  const hasFilter = !!(state.sigla || state.eixo || state.ano || state.trimestre);
+  if (p7c)   p7c.style.display   = hasFilter ? 'block' : 'none';
+  if (aviso) aviso.style.display = hasFilter ? 'none'  : 'flex';
+  showPage(currentPage);
+});
 
 // ===== INIT =====
 async function init() {
   try {
+    // Mostra todas as páginas durante render para que Chart.js obtenha dimensões corretas
+    document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
     await setupFilters();
     await Promise.all([renderP1(), renderP2(), renderP3(), renderP4(), renderP5(), renderP6(), renderP7()]);
     showPage(1);
