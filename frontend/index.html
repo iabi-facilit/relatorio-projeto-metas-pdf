@@ -499,13 +499,19 @@ function showPage(n) {
   document.getElementById('page-indicator').textContent = `Página ${currentPage} de ${TOTAL_PAGES}`;
   document.getElementById('btn-prev').disabled = currentPage === 1;
   document.getElementById('btn-next').disabled = currentPage === TOTAL_PAGES;
-  // Charts de p7 podem ter sido criados com a página oculta (display:none).
-  // Ao navegar para pág.7, força resize para garantir dimensões corretas.
-  if (currentPage === 7) {
-    requestAnimationFrame(() => {
-      ['c-p7-pie', 'c-p7-enc'].forEach(id => { try { charts[id]?.resize(); } catch(e){} });
+  // Com responsive:false, charts não redimensionam sozinhos ao page ficar visível.
+  // Ao navegar, faz resize explícito dos charts da página ativa.
+  requestAnimationFrame(() => {
+    const pageEl = document.querySelectorAll('.page')[currentPage - 1];
+    if (!pageEl) return;
+    pageEl.querySelectorAll('canvas').forEach(cv => {
+      const chart = charts[cv.id];
+      const wrap  = cv.closest('.ch');
+      if (chart && wrap && wrap.clientWidth > 0) {
+        try { chart.resize(wrap.clientWidth, wrap.clientHeight); chart.draw(); } catch(e) {}
+      }
     });
-  }
+  });
 }
 
 // ===== UTILS =====
@@ -561,7 +567,7 @@ const donutDatalabels = {
 function horizStackedOpts(legendFontSize = 10) {
   return {
     indexAxis: 'y',
-    responsive: true,
+    responsive: false,
     maintainAspectRatio: false,
     scales: {
       x: { stacked: true, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: '#eee' } },
@@ -577,7 +583,7 @@ function horizStackedOpts(legendFontSize = 10) {
 
 function donutOpts() {
   return {
-    responsive: true,
+    responsive: false,
     maintainAspectRatio: false,
     plugins: {
       legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12, padding: 5 } },
@@ -589,7 +595,7 @@ function donutOpts() {
 
 function barOpts() {
   return {
-    responsive: true,
+    responsive: false,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
@@ -965,14 +971,16 @@ window.addEventListener('beforeprint', () => {
     if (!canvas || !canvas.parentNode) return;
     try {
       const [pw, ph] = PRINT_DIMS[id] || [A4_F, chart.height || 300];
-      // 1) Redimensiona para dimensões do A4
+      // 1) Redimensiona o layout interno (síncrono)
       chart.resize(pw, ph);
-      chart.update('none');
-      // 2) Captura como imagem (canvas já está no tamanho certo)
+      // 2) chart.draw() é SÍNCRONO — renderiza imediatamente no canvas
+      //    (chart.update() usa requestAnimationFrame = async → canvas ficaria branco)
+      chart.draw();
+      // 3) Captura o canvas já desenhado
       const img = document.createElement('img');
       img.src = canvas.toDataURL('image/png', 1.0);
       img.style.cssText = `width:${pw}px;height:${ph}px;display:block`;
-      // 3) Substitui canvas pela imagem
+      // 4) Substitui canvas pela imagem estática
       canvas.style.display = 'none';
       canvas.parentNode.insertBefore(img, canvas);
       _printImgs[id] = img;
@@ -995,12 +1003,12 @@ window.addEventListener('afterprint', () => {
   if (p7c)   p7c.style.display   = hasFilter ? 'block' : 'none';
   if (aviso) aviso.style.display = hasFilter ? 'none'  : 'flex';
   showPage(currentPage);
-  // Dois rAFs: 1º aguarda layout de tela ser recalculado, 2º realiza resize+redraw
+  // Restaura charts para dimensões do container de tela (responsive:false = manual)
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      Object.values(charts).forEach(c => {
-        try { c.resize(); c.update('none'); } catch(e) {}
-      });
+    Object.entries(charts).forEach(([id, chart]) => {
+      const wrap = document.getElementById(id)?.closest('.ch');
+      if (!wrap) return;
+      try { chart.resize(wrap.clientWidth, wrap.clientHeight); chart.draw(); } catch(e) {}
     });
   });
 });
@@ -1008,10 +1016,13 @@ window.addEventListener('afterprint', () => {
 // ===== INIT =====
 async function init() {
   try {
-    // Mostra todas as páginas durante render para que Chart.js obtenha dimensões corretas
+    // 1) Mostra todas as páginas para que charts renderizem com dimensões corretas
     document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
     await setupFilters();
     await Promise.all([renderP1(), renderP2(), renderP3(), renderP4(), renderP5(), renderP6(), renderP7()]);
+    // 2) LIMPA inline styles — sem isso showPage não consegue esconder páginas
+    //    (inline style tem precedência sobre CSS class .page { display:none })
+    document.querySelectorAll('.page').forEach(p => p.style.display = '');
     showPage(1);
   } finally {
     document.getElementById('loading').style.display = 'none';
