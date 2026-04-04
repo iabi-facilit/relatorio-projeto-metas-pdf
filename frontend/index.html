@@ -551,7 +551,7 @@ const donutDatalabels = {
   },
 };
 
-function horizStackedOpts() {
+function horizStackedOpts(legendFontSize = 10) {
   return {
     indexAxis: 'y',
     responsive: true,
@@ -561,7 +561,7 @@ function horizStackedOpts() {
       y: { stacked: true, ticks: { font: { size: 11 } } },
     },
     plugins: {
-      legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12, padding: 6 } },
+      legend: { position: 'bottom', labels: { font: { size: legendFontSize }, boxWidth: legendFontSize < 10 ? 9 : 12, padding: legendFontSize < 10 ? 4 : 6 } },
       tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${parseFloat(ctx.raw).toFixed(1)}%` } },
       datalabels: stackedBarDatalabels,
     },
@@ -684,7 +684,7 @@ async function renderP5() {
   const d = await fetch('/api/p5').then(r => r.json());
 
   const { labels, datasets } = buildStackedPct(d.eixo_status, 'eixo', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
-  mkChart('c-p5-eixo', { type: 'bar', data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets }, options: horizStackedOpts() });
+  mkChart('c-p5-eixo', { type: 'bar', data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets }, options: horizStackedOpts(8) });
 
   const statusOrd = STATUS_ENC_ORDER.filter(s => d.global_status.find(x => x.status_enc === s));
   mkChart('c-p5-donut', {
@@ -705,7 +705,7 @@ async function renderP6() {
   document.getElementById('c-p6').setAttribute('height', h);
 
   const { labels, datasets } = buildStackedPct(d.data, 'sigla', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
-  mkChart('c-p6', { type: 'bar', data: { labels, datasets }, options: horizStackedOpts() });
+  mkChart('c-p6', { type: 'bar', data: { labels, datasets }, options: horizStackedOpts(8) });
 }
 
 async function renderP7() {
@@ -974,13 +974,10 @@ window.addEventListener('beforeprint', () => {
 });
 
 window.addEventListener('afterprint', () => {
-  // Restaura canvases e remove imagens
+  // Remove imagens e restaura canvases
   Object.entries(_printImgs).forEach(([id, img]) => {
     const canvas = document.getElementById(id);
-    if (canvas) {
-      canvas.style.display = '';
-      try { charts[id]?.resize(); } catch(e) {}
-    }
+    if (canvas) canvas.style.display = '';
     img.remove();
     delete _printImgs[id];
   });
@@ -991,6 +988,10 @@ window.addEventListener('afterprint', () => {
   if (p7c)   p7c.style.display   = hasFilter ? 'block' : 'none';
   if (aviso) aviso.style.display = hasFilter ? 'none'  : 'flex';
   showPage(currentPage);
+  // Aguarda rAF para o DOM recalcular layout de tela antes de restaurar os charts
+  requestAnimationFrame(() => {
+    Object.values(charts).forEach(c => { try { c.resize(); } catch(e) {} });
+  });
 });
 
 // ===== INIT =====
