@@ -225,7 +225,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
   /* ── P5: empilhado vertical (barra invadia donut no lado a lado) ── */
   #p5 .chart-row { flex-direction: column !important; gap: 12px; }
   #p5 .chart-box { flex-basis: auto !important; }
-  #c-p5-eixo { height: 180px !important; }
+  #c-p5-eixo { height: 175px !important; }
   #p5 #c-p5-eixo ~ * { }
   #p5 .ch { height: 200px !important; }
 
@@ -385,7 +385,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #e8edf3; color: #
     <div class="page-titlebar"><div class="page-num">5</div><h2>Análise dos Pontos de Balanço — Encaminhamentos</h2></div>
     <div class="page-body">
       <div class="chart-row">
-        <div class="chart-box" style="flex:2"><h3>Encaminhamentos por Eixo × Status (%)</h3><div class="ch" style="height:130px"><canvas id="c-p5-eixo"></canvas></div></div>
+        <div class="chart-box" style="flex:2"><h3>Encaminhamentos por Eixo × Status (%)</h3><div class="ch" style="height:175px"><canvas id="c-p5-eixo"></canvas></div></div>
         <div class="chart-box"><h3>Status Geral dos Encaminhamentos</h3><div class="ch" style="height:200px"><canvas id="c-p5-donut"></canvas></div></div>
       </div>
     </div>
@@ -684,7 +684,7 @@ async function renderP5() {
   const d = await fetch('/api/p5').then(r => r.json());
 
   const { labels, datasets } = buildStackedPct(d.eixo_status, 'eixo', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
-  mkChart('c-p5-eixo', { type: 'bar', data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets }, options: horizStackedOpts(8) });
+  mkChart('c-p5-eixo', { type: 'bar', data: { labels: labels.map(l => l.split(' - ').slice(1).join(' - ')), datasets }, options: horizStackedOpts() });
 
   const statusOrd = STATUS_ENC_ORDER.filter(s => d.global_status.find(x => x.status_enc === s));
   mkChart('c-p5-donut', {
@@ -705,7 +705,7 @@ async function renderP6() {
   document.getElementById('c-p6').setAttribute('height', h);
 
   const { labels, datasets } = buildStackedPct(d.data, 'sigla', 'status_enc', 'qtd', STATUS_ENC_ORDER, encColor);
-  mkChart('c-p6', { type: 'bar', data: { labels, datasets }, options: horizStackedOpts(8) });
+  mkChart('c-p6', { type: 'bar', data: { labels, datasets }, options: horizStackedOpts() });
 }
 
 async function renderP7() {
@@ -940,7 +940,7 @@ const PRINT_DIMS = {
   'c-p1-status': [A4_H, 270], 'c-p1-eixo':  [A4_H, 270],
   'c-p2-proj':   [A4_F, 200], 'c-p2-metas': [A4_H, 200],
   'c-p3-bar':    [A4_F, 190],
-  'c-p5-eixo':   [A4_F, 170], 'c-p5-donut': [A4_F, 190],
+  'c-p5-eixo':   [A4_F, 175], 'c-p5-donut': [A4_F, 190],
   'c-p7-pie':    [A4_H, 220], 'c-p7-enc':   [A4_H, 220],
   // c-p4 e c-p6: barras dinâmicas — largura A4, altura mantida
 };
