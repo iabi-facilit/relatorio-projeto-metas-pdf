@@ -927,42 +927,63 @@ async function setupFilters() {
 }
 
 // ===== PRINT EVENTS =====
-// chart.resize() sem args lê clientWidth do container, que no beforeprint ainda retorna
-// dimensões de tela. Passamos dimensões explícitas calculadas para A4 portrait:
-//   190mm usável = 718px; menos page-body padding 40px = 678px (inner)
-//   menos chart-box padding 28px = 650px (full-width canvas)
-//   dois charts por linha com gap 16px: (678-16)/2 - 28 = 303px (half-width)
-const A4_F = 650;  // largura full
-const A4_H = 303;  // largura half (dois por linha)
-// Mapeamento [largura, altura] por canvas id — alturas espelham o CSS @media print
+// Estratégia: capturar cada chart como imagem PNG com dimensões exatas do A4,
+// substituir o canvas pela imagem antes de imprimir, restaurar depois.
+// Isso elimina interferência do sistema responsive do Chart.js.
+//
+// A4 portrait: 190mm usável = 718px CSS
+//   menos page-body padding 40px = 678px
+//   menos chart-box padding 28px = 650px (full) | dois por linha com gap 16px = 303px (half)
+const A4_F = 650;
+const A4_H = 303;
 const PRINT_DIMS = {
-  'c-p1-status': [A4_H, 270], 'c-p1-eixo':   [A4_H, 270],
-  'c-p2-proj':   [A4_F, 200], 'c-p2-metas':  [A4_H, 200],
+  'c-p1-status': [A4_H, 270], 'c-p1-eixo':  [A4_H, 270],
+  'c-p2-proj':   [A4_F, 200], 'c-p2-metas': [A4_H, 200],
   'c-p3-bar':    [A4_F, 190],
-  // c-p4 e c-p6: barras dinâmicas, mantém altura original, ajusta só largura
-  'c-p5-eixo':   [A4_F, 170], 'c-p5-donut':  [A4_F, 190],
-  'c-p7-pie':    [A4_H, 220], 'c-p7-enc':    [A4_H, 220],
+  'c-p5-eixo':   [A4_F, 170], 'c-p5-donut': [A4_F, 190],
+  'c-p7-pie':    [A4_H, 220], 'c-p7-enc':   [A4_H, 220],
+  // c-p4 e c-p6: barras dinâmicas — largura A4, altura mantida
 };
+
+const _printImgs = {};
 
 window.addEventListener('beforeprint', () => {
   document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
   const p7c = document.getElementById('p7-conteudo');
-  if (p7c && (state.sigla || state.eixo || state.ano || state.trimestre)) p7c.style.display = 'block';
+  const hasFilter = !!(state.sigla || state.eixo || state.ano || state.trimestre);
+  if (p7c && hasFilter) p7c.style.display = 'block';
+
   Object.entries(charts).forEach(([id, chart]) => {
+    const canvas = document.getElementById(id);
+    if (!canvas || !canvas.parentNode) return;
     try {
-      const d = PRINT_DIMS[id];
-      if (d) {
-        chart.resize(d[0], d[1]);
-      } else {
-        // barras dinâmicas (p4, p6): mantém altura, ajusta largura para A4
-        chart.resize(A4_F, chart.height || 400);
-      }
+      const [pw, ph] = PRINT_DIMS[id] || [A4_F, chart.height || 300];
+      // 1) Redimensiona para dimensões do A4
+      chart.resize(pw, ph);
       chart.update('none');
+      // 2) Captura como imagem (canvas já está no tamanho certo)
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png', 1.0);
+      img.style.cssText = `width:${pw}px;height:${ph}px;display:block`;
+      // 3) Substitui canvas pela imagem
+      canvas.style.display = 'none';
+      canvas.parentNode.insertBefore(img, canvas);
+      _printImgs[id] = img;
     } catch(e) {}
   });
 });
 
 window.addEventListener('afterprint', () => {
+  // Restaura canvases e remove imagens
+  Object.entries(_printImgs).forEach(([id, img]) => {
+    const canvas = document.getElementById(id);
+    if (canvas) {
+      canvas.style.display = '';
+      try { charts[id]?.resize(); } catch(e) {}
+    }
+    img.remove();
+    delete _printImgs[id];
+  });
   document.querySelectorAll('.page').forEach(p => p.style.display = '');
   const p7c = document.getElementById('p7-conteudo');
   const aviso = document.getElementById('p7-aviso');
