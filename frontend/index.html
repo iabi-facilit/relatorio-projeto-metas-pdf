@@ -935,15 +935,10 @@ async function setupFilters() {
 
   document.getElementById('btn-prev').addEventListener('click', () => showPage(currentPage - 1));
   document.getElementById('btn-next').addEventListener('click', () => showPage(currentPage + 1));
-  // beforeprint/afterprint cuidam de mostrar páginas e redimensionar charts
-  document.getElementById('btn-baixar').addEventListener('click', () => window.print());
+  document.getElementById('btn-baixar').addEventListener('click', preparePrintAndPrint);
 }
 
 // ===== PRINT EVENTS =====
-// Estratégia: capturar cada chart como imagem PNG com dimensões exatas do A4,
-// substituir o canvas pela imagem antes de imprimir, restaurar depois.
-// Isso elimina interferência do sistema responsive do Chart.js.
-//
 // A4 portrait: 190mm usável = 718px CSS
 //   menos page-body padding 40px = 678px
 //   menos chart-box padding 28px = 650px (full) | dois por linha com gap 16px = 303px (half)
@@ -955,40 +950,72 @@ const PRINT_DIMS = {
   'c-p3-bar':    [A4_F, 190],
   'c-p5-eixo':   [A4_F, 175], 'c-p5-donut': [A4_F, 190],
   'c-p7-pie':    [A4_H, 220], 'c-p7-enc':   [A4_H, 220],
-  // c-p4 e c-p6: barras dinâmicas — largura A4, altura mantida
 };
 
 const _printImgs = {};
+let _printReady = false;
 
-window.addEventListener('beforeprint', () => {
+function _showAllPages() {
   document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
   const p7c = document.getElementById('p7-conteudo');
   const hasFilter = !!(state.sigla || state.eixo || state.ano || state.trimestre);
   if (p7c && hasFilter) p7c.style.display = 'block';
+}
 
+function _captureCharts() {
   Object.entries(charts).forEach(([id, chart]) => {
     const canvas = document.getElementById(id);
     if (!canvas || !canvas.parentNode) return;
     try {
       const [pw, ph] = PRINT_DIMS[id] || [A4_F, chart.height || 300];
-      // 1) Redimensiona o layout interno (síncrono)
-      chart.resize(pw, ph);
-      // 2) chart.draw() é SÍNCRONO — renderiza imediatamente no canvas
-      //    (chart.update() usa requestAnimationFrame = async → canvas ficaria branco)
-      chart.draw();
-      // 3) Captura o canvas já desenhado
       const img = document.createElement('img');
       img.src = canvas.toDataURL('image/png', 1.0);
       img.style.cssText = `width:${pw}px;height:${ph}px;display:block`;
-      // 4) Substitui canvas pela imagem estática
       canvas.style.display = 'none';
       canvas.parentNode.insertBefore(img, canvas);
       _printImgs[id] = img;
     } catch(e) {}
   });
+}
+
+// Chamado pelo botão "Baixar Relatório"
+// Faz o resize e aguarda Chart.js renderizar (async via RAF) antes de capturar
+async function preparePrintAndPrint() {
+  // 1) Mostra todas as páginas
+  _showAllPages();
+
+  // 2) Força reflow para que display:block seja aplicado antes do resize
+  void document.body.offsetHeight;
+
+  // 3) Redimensiona todos os charts para as dimensões de impressão
+  Object.entries(charts).forEach(([id, chart]) => {
+    try {
+      const [pw, ph] = PRINT_DIMS[id] || [A4_F, chart.height || 300];
+      chart.resize(pw, ph);
+    } catch(e) {}
+  });
+
+  // 4) Aguarda Chart.js completar o desenho (2 frames de RAF para garantir)
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  // 5) Captura cada canvas como imagem estática
+  _captureCharts();
+
+  // 6) Marca como pronto (beforeprint vai pular a captura pois já foi feita)
+  _printReady = true;
+  window.print();
+}
+
+// beforeprint: usado como fallback para Ctrl+P (sem garantia de charts)
+// Quando chamado via botão, _printReady=true e pula direto
+window.addEventListener('beforeprint', () => {
+  if (_printReady) return; // já preparado pelo botão — não faz nada
+  // Fallback Ctrl+P: apenas mostra as páginas (charts podem ficar em branco)
+  _showAllPages();
 });
 
 window.addEventListener('afterprint', () => {
+  _printReady = false;
   // Remove imagens e restaura canvases
   Object.entries(_printImgs).forEach(([id, img]) => {
     const canvas = document.getElementById(id);
