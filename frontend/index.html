@@ -927,14 +927,38 @@ async function setupFilters() {
 }
 
 // ===== PRINT EVENTS =====
-// beforeprint dispara APÓS o CSS de impressão ser aplicado — dimensões dos containers já são as de impressão
+// chart.resize() sem args lê clientWidth do container, que no beforeprint ainda retorna
+// dimensões de tela. Passamos dimensões explícitas calculadas para A4 portrait:
+//   190mm usável = 718px; menos page-body padding 40px = 678px (inner)
+//   menos chart-box padding 28px = 650px (full-width canvas)
+//   dois charts por linha com gap 16px: (678-16)/2 - 28 = 303px (half-width)
+const A4_F = 650;  // largura full
+const A4_H = 303;  // largura half (dois por linha)
+// Mapeamento [largura, altura] por canvas id — alturas espelham o CSS @media print
+const PRINT_DIMS = {
+  'c-p1-status': [A4_H, 270], 'c-p1-eixo':   [A4_H, 270],
+  'c-p2-proj':   [A4_F, 200], 'c-p2-metas':  [A4_H, 200],
+  'c-p3-bar':    [A4_F, 190],
+  // c-p4 e c-p6: barras dinâmicas, mantém altura original, ajusta só largura
+  'c-p5-eixo':   [A4_F, 170], 'c-p5-donut':  [A4_F, 190],
+  'c-p7-pie':    [A4_H, 220], 'c-p7-enc':    [A4_H, 220],
+};
+
 window.addEventListener('beforeprint', () => {
   document.querySelectorAll('.page').forEach(p => p.style.display = 'block');
   const p7c = document.getElementById('p7-conteudo');
   if (p7c && (state.sigla || state.eixo || state.ano || state.trimestre)) p7c.style.display = 'block';
-  void document.body.offsetHeight; // força recalculo de layout com CSS de impressão ativo
-  Object.values(charts).forEach(c => {
-    try { c.resize(); c.update('none'); } catch(e) {}
+  Object.entries(charts).forEach(([id, chart]) => {
+    try {
+      const d = PRINT_DIMS[id];
+      if (d) {
+        chart.resize(d[0], d[1]);
+      } else {
+        // barras dinâmicas (p4, p6): mantém altura, ajusta largura para A4
+        chart.resize(A4_F, chart.height || 400);
+      }
+      chart.update('none');
+    } catch(e) {}
   });
 });
 
