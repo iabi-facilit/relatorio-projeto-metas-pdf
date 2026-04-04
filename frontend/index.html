@@ -995,9 +995,13 @@ window.addEventListener('afterprint', () => {
   if (p7c)   p7c.style.display   = hasFilter ? 'block' : 'none';
   if (aviso) aviso.style.display = hasFilter ? 'none'  : 'flex';
   showPage(currentPage);
-  // Aguarda rAF para o DOM recalcular layout de tela antes de restaurar os charts
+  // Dois rAFs: 1º aguarda layout de tela ser recalculado, 2º realiza resize+redraw
   requestAnimationFrame(() => {
-    Object.values(charts).forEach(c => { try { c.resize(); } catch(e) {} });
+    requestAnimationFrame(() => {
+      Object.values(charts).forEach(c => {
+        try { c.resize(); c.update('none'); } catch(e) {}
+      });
+    });
   });
 });
 
