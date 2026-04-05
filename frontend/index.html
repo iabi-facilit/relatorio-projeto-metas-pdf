@@ -569,6 +569,7 @@ function horizStackedOpts(legendFontSize = 10) {
     indexAxis: 'y',
     responsive: false,
     maintainAspectRatio: false,
+    animation: false,
     scales: {
       x: { stacked: true, max: 100, ticks: { callback: v => v + '%', font: { size: 10 } }, grid: { color: '#eee' } },
       y: { stacked: true, ticks: { font: { size: 11 } } },
@@ -585,6 +586,7 @@ function donutOpts() {
   return {
     responsive: false,
     maintainAspectRatio: false,
+    animation: false,
     plugins: {
       legend: { position: 'right', labels: { font: { size: 10 }, boxWidth: 12, padding: 5 } },
       tooltip: { callbacks: { label: ctx => `${ctx.label}: ${ctx.formattedValue}` } },
@@ -597,6 +599,7 @@ function barOpts() {
   return {
     responsive: false,
     maintainAspectRatio: false,
+    animation: false,
     plugins: {
       legend: { display: false },
       datalabels: {
